@@ -3,7 +3,7 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 9999;
 
 // Readiness/liveness probes should hit this. Keep it dependency-free
 // so it stays fast and reliable even under load.
@@ -40,14 +40,25 @@ app.post("/chat", async (req, res) => {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "qwen/qwen3.8-27b",
         messages: [{ role: "user", content: message }],
       }),
     });
 
     const data = await response.json();
+
+    // Catch non-200 HTTP responses from Groq
+    if (!response.ok) {
+      console.error("Groq API Error:", data);
+      return res.status(response.status).json({
+        error: "Groq API Error",
+        details: data.error
+      });
+    }
+
     const reply = data.choices?.[0]?.message?.content ?? "No response from model";
     res.json({ reply });
+
   } catch (err) {
     console.error("LLM call failed:", err);
     res.status(500).json({ error: "Failed to reach the model provider" });
